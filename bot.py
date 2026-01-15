@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sqlite3
 import base64
+import os
 from io import BytesIO
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types, F
