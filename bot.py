@@ -13,8 +13,9 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, BufferedInputFile
 from openai import AsyncOpenAI
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8594342469:AAEW_7iGUZrwnLGcocOLduPl14eFExMeo-4")
-API_KEY = os.getenv("API_KEY", "sk-dd7I7EH6Gtg0zBTDManlSPCLoBN8rQPAatfF57GFebec8vgBHVbnx15JTKMa")
+# Конфигурация
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8594342469:AAEW_7iGUZrwnLGcocOLduPl14eFExMeo\-4")
+API_KEY = os.getenv("API_KEY", "sk\-dd7I7EH6Gtg0zBTDManlSPCLoBN8rQPAatfF57GFebec8vgBHVbnx15JTKMa")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "6387718314"))
 
 BASE_URL = "https://api.aitunnel.ru/v1/"
@@ -44,7 +45,7 @@ def init_db():
 def get_limit(user_id):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now().strftime("%Y\-%m\-%d")
     c.execute("SELECT is_premium, img_count, last_reset FROM users WHERE user_id = ?", (user_id,))
     row = c.fetchone()
     if row is None:
@@ -80,10 +81,10 @@ def main_keyboard():
 async def start_handler(message: types.Message):
     init_db()
     await message.answer(
-        "🚀 **PhotoGen Bot** - генерация фото!\n\n"
-        "📤 *Фото + промпт* = remix\n"
+        "🚀 **PhotoGen Bot** \- генерация фото!\n\n"
+        "📤 *Фото \+ промпт* = remix\n"
         "✍️ *Текст* = создание с нуля\n\n"
-        "⚡ Free: 3/день | Premium: 10/день",
+        "⚡ Free\: 3/день \| Premium\: 10/день",
         reply_markup=main_keyboard(),
         parse_mode="MarkdownV2"
     )
@@ -91,15 +92,15 @@ async def start_handler(message: types.Message):
 @dp.callback_query(F.data == "generate")
 async def generate_callback(callback: types.CallbackQuery):
     await callback.message.edit_text(
-        "📤 **Отправь фото** (PNG/JPG)\n"
-        "💡 Потом промпт: `добавь закат`, `аниме стиль`",
+        "📤 **Отправь фото** \(PNG/JPG\)\n"
+        "💡 Потом промпт\: `добавь закат`, `аниме стиль`",
         parse_mode="MarkdownV2"
     )
     await callback.answer()
 
 @dp.callback_query(F.data == "premium")
 async def premium_callback(callback: types.CallbackQuery):
-    await callback.answer("💎 /set_premium [ID пользователя]", show_alert=True)
+    await callback.answer("💎 /set_premium \[ID пользователя\]", show_alert=True)
 
 @dp.callback_query(F.data == "help")
 async def help_callback(callback: types.CallbackQuery):
@@ -108,7 +109,7 @@ async def help_callback(callback: types.CallbackQuery):
         "💡 `кот в космосе`\n"
         "`добавь шляпу`\n"
         "`реализм, студийное фото`\n\n"
-        "⚙️ Лимиты: Free=3, Premium=10/день",
+        "⚙️ Free=3 Premium=10/день",
         parse_mode="MarkdownV2"
     )
     await callback.answer()
@@ -124,14 +125,14 @@ async def photo_handler(message: types.Message, state: FSMContext):
     elif photo_bytes.startswith(b'\xFF\xD8'):
         mime = "image/jpeg"
     else:
-        await message.answer("❌ Только PNG/JPG!")
+        await message.answer("❌ Только PNG/JPG\!")
         return
 
     b64_data = base64.b64encode(photo_bytes).decode()
     image_url = f"data:{mime};base64,{b64_data}"
 
     await state.update_data(image_url=image_url)
-    await message.answer("✅ Фото загружено! 💭 **Промпт:**", parse_mode="MarkdownV2")
+    await message.answer("✅ Фото загружено! 💭 **Промпт\:**", parse_mode="MarkdownV2")
     await state.set_state(GenState.waiting_prompt)
 
 @dp.message(GenState.waiting_prompt)
@@ -146,13 +147,13 @@ async def generate_image(message: types.Message, state: FSMContext):
     if remaining <= 0:
         await message.answer(
             f"❌ **Лимит исчерпан**\n"
-            f"Premium ({'✅' if is_premium else '❌'}): 10/день",
+            f"Premium \({ '✅' if is_premium else '❌' }\)\: 10/день",
             parse_mode="MarkdownV2"
         )
         await state.clear()
         return
 
-    await message.answer("🎨 **Генерирую фото...**")
+    await message.answer("🎨 **Генерирую фото\...**")
 
     try:
         response = await client.chat.completions.create(
@@ -160,7 +161,7 @@ async def generate_image(message: types.Message, state: FSMContext):
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": f"Перегенерируй фото по инструкции: {prompt}"},
+                    {"type": "text", "text": f"Перегенерируй фото по инструкции\: {prompt}"},
                     {"type": "image_url", "image_url": {"url": image_url}}
                 ]
             }],
@@ -178,14 +179,14 @@ async def generate_image(message: types.Message, state: FSMContext):
             img_bytes = base64.b64decode(b64_content)
             photo = BufferedInputFile(img_bytes, filename="generated.png")
 
-            caption = f"✅ **Готово!**\nОсталось: {remaining - 1}/{PREMIUM_LIMIT if is_premium else FREE_LIMIT}"
+            caption = f"✅ **Готово\!**\\nОсталось\: {remaining - 1}/{PREMIUM_LIMIT if is_premium else FREE_LIMIT}"
             await message.answer_photo(photo, caption=caption, parse_mode="MarkdownV2")
             use_limit(user_id)
         else:
-            await message.answer("❌ Попробуй другой промпт. Добавь 'создай фото...'")
+            await message.answer("❌ Попробуй другой промпт\. Добавь 'создай фото\...'")
 
     except Exception as e:
-        await message.answer(f"🚨 Ошибка API: {str(e)[:100]}")
+        await message.answer(f"🚨 Ошибка API\: {str(e)[:100]}\\nПопробуй позже\.")
 
     await state.clear()
 
@@ -196,15 +197,15 @@ async def text_to_image(message: types.Message):
     remaining, is_premium = get_limit(user_id)
 
     if remaining <= 0:
-        await message.answer("❌ Лимит. /set_premium ID")
+        await message.answer("❌ **Лимит\!** /set_premium ID")
         return
 
-    await message.answer("🎨 **Создаю по тексту...**")
+    await message.answer("🎨 **Создаю по тексту\...**")
 
     try:
         response = await client.chat.completions.create(
             model="gemini-2.5-flash-image-preview",
-            messages=[{"role": "user", "content": f"Создай качественное фото: {prompt}"}],
+            messages=[{"role": "user", "content": f"Создай качественное фото\: {prompt}"}],
             modalities=["image", "text"]
         )
 
@@ -215,7 +216,7 @@ async def text_to_image(message: types.Message):
             img_bytes = base64.b64decode(b64_content)
             photo = BufferedInputFile(img_bytes, filename="generated.png")
 
-            caption = f"✅ **Готово!**\nОсталось: {remaining - 1}/{PREMIUM_LIMIT if is_premium else FREE_LIMIT}"
+            caption = f"✅ **Готово\!**\\nОсталось\: {remaining - 1}/{PREMIUM_LIMIT if is_premium else FREE_LIMIT}"
             await message.answer_photo(photo, caption=caption, parse_mode="MarkdownV2")
             use_limit(user_id)
 
@@ -225,7 +226,8 @@ async def text_to_image(message: types.Message):
 @dp.message(Command("set_premium"))
 async def set_premium(message: types.Message):
     if message.from_user.id != ADMIN_ID:
-        return await message.answer("🚫 Только админ")
+        await message.answer("🚫 Только админ")
+        return
     try:
         target_id = int(message.text.split(maxsplit=1)[1])
         conn = sqlite3.connect(DB_FILE)
@@ -233,14 +235,14 @@ async def set_premium(message: types.Message):
         c.execute("UPDATE users SET is_premium = 1 WHERE user_id = ?", (target_id,))
         conn.commit()
         conn.close()
-        await message.answer(f"✅ Premium выдан: {target_id}")
+        await message.answer(f"✅ Premium выдан\: {target_id}")
     except:
         await message.answer("❌ /set_premium 123456789")
 
 async def main():
     logging.basicConfig(level=logging.INFO)
     init_db()
-    print("🤖 PhotoGen Bot готов!")
+    print("🤖 PhotoGen Bot запущен\!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
