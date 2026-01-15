@@ -1,0 +1,12 @@
+#!/bin/bash
+echo "=== DEPLOY TO BOTHOST.RU ==="
+echo "1. Зарегистрируйся: bothost.ru"
+echo "2. Новый проект -> Telegram Bot"
+echo "3. GitHub / ZIP Upload"
+echo "4. ENV:"
+echo "   BOT_TOKEN=твой_токен"
+echo "   API_KEY=sk-dd7I7EH6..."
+echo "   ADMIN_ID=123456"
+echo "5. Deploy!"
+echo ""
+echo "VDS: docker-compose up -d"

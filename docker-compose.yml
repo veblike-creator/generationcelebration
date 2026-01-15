@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  bot:
+    build: .
+    container_name: photogen
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN
+      - API_KEY
+      - ADMIN_ID
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8080:8080"
