@@ -75,7 +75,7 @@ def main_kb():
 @dp.message(Command("start"))
 async def start_cmd(msg: types.Message):
     init_db()
-    await msg.answer("PhotoGen Bot - AI фото генерация!\\n\\n📤 Фото + текст = remix\\n✍️ Текст = генерация\\n\\nFree: 3/день | Premium: 10/день", reply_markup=main_kb())
+    await msg.answer("PhotoGen Bot - AI фото генерация!\n\n📤 Фото + текст = remix\n✍️ Текст = генерация\n\nFree: 3/день | Premium: 10/день", reply_markup=main_kb())
 
 @dp.callback_query(F.data == "gen")
 async def gen_cb(cb: types.CallbackQuery):
@@ -88,17 +88,22 @@ async def prem_cb(cb: types.CallbackQuery):
 
 @dp.callback_query(F.data == "help")
 async def help_cb(cb: types.CallbackQuery):
-    await cb.message.edit_text("Примеры: кот в космосе, добавь шляпу, реализм\\nFree=3 Premium=10/день")
+    await cb.message.edit_text("Примеры: кот в космосе, добавь шляпу, реализм\nFree=3 Premium=10/день")
     await cb.answer()
 
 @dp.message(F.photo)
 async def photo_handler(msg: types.Message, state: FSMContext):
-    # ИСПРАВЛЕНО: bot.get_file + bot.download_file
     file_id = msg.photo[-1].file_id
     file = await bot.get_file(file_id)
-    photo_bytes = await bot.download_file(file.file_path)
+    photo_bytes_io = await bot.download_file(file.file_path)
     
-    mime = "image/png" if photo_bytes[:8] == b'\\x89PNG\\r\\n\\x1a\\n' else "image/jpeg"
+    # ✅ ИСПРАВЛЕНИЕ: Получаем байты из BytesIO
+    photo_bytes = photo_bytes_io.getvalue()
+    
+    # Проверяем заголовок PNG
+    png_header = b'\x89PNG\r\n\x1a\n'
+    mime = "image/png" if photo_bytes[:8] == png_header else "image/jpeg"
+    
     b64 = base64.b64encode(photo_bytes).decode()
     image_data = f"{mime};base64,{b64}"
     
