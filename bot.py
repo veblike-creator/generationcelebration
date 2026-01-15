@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sqlite3
 import base64
+import re
 from io import BytesIO
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types, F
@@ -12,7 +13,6 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, BufferedInputFile
 from openai import AsyncOpenAI
 
-# ТОКЕНЫ В КОДЕ
 BOT_TOKEN = "8594342469:AAEW_7iGUZrwnLGcocOLduPl14eFExMeo-4"
 API_KEY = "sk-aitunnel-iP4KByEtsVaxNJoAP6O1jmPgoqAHGxiD"
 ADMIN_ID = 6387718314
@@ -74,20 +74,20 @@ def main_kb():
 @dp.message(Command("start"))
 async def start_cmd(msg: types.Message):
     init_db()
-    await msg.answer("🚀 PhotoGen Bot - AI фото генерация!\n\n📤 Фото + текст = remix\n✍️ Текст = генерация с нуля\n\nFree: 3/день | Premium: 10/день", reply_markup=main_kb())
+    await msg.answer("🚀 PhotoGen Bot - AI фото!\n📤 Фото+текст=remix | Текст=txt2img\nFree:3/d | Premium:10/d", reply_markup=main_kb())
 
 @dp.callback_query(F.data == "gen")
 async def gen_cb(cb: types.CallbackQuery):
-    await cb.message.edit_text("📤 Отправь фото (PNG/JPG), потом промпт\n💡 Примеры: добавь закат, аниме стиль")
+    await cb.message.edit_text("📤 Отправь фото, потом промпт (добавь закат)")
     await cb.answer()
 
 @dp.callback_query(F.data == "prem")
 async def prem_cb(cb: types.CallbackQuery):
-    await cb.answer("💎 Premium: /set_premium [user_id]", show_alert=True)
+    await cb.answer("Premium: /set_premium ID")
 
 @dp.callback_query(F.data == "help")
 async def help_cb(cb: types.CallbackQuery):
-    await cb.message.edit_text("ℹ️ Примеры промптов:\n• кот в космосе\n• добавь шляпу\n• реализм, студийное фото\n\nFree: 3 фото/день\nPremium: 10 фото/день")
+    await cb.message.edit_text("Примеры: `кот в космосе`, `добавь шляпу`, `реализм`\nFree=3 Premium=10/d")
     await cb.answer()
 
 @dp.message(F.photo)
@@ -101,7 +101,7 @@ async def photo_handler(msg: types.Message, state: FSMContext):
     image_data = f"data:{mime};base64,{b64}"
 
     await state.update_data(image=image_data)
-    await msg.answer("✅ Фото загружено! Отправь промпт для генерации:")
+    await msg.answer("✅ Фото готово! Промпт:")
     await state.set_state(GenState.waiting_prompt)
 
 @dp.message(GenState.waiting_prompt)
@@ -113,11 +113,11 @@ async def generate_photo(msg: types.Message, state: FSMContext):
     user_id = msg.from_user.id
     remaining, is_prem = get_limit(user_id)
     if remaining <= 0:
-        await msg.answer("❌ Лимит исчерпан. Premium: /set_premium ID")
+        await msg.answer("❌ Лимит. /set_premium ID")
         await state.clear()
         return
 
-    await msg.answer("🎨 Генерирую фото...")
+    await msg.answer("🎨 Генерирую...")
 
     try:
         resp = await client.chat.completions.create(
@@ -125,26 +125,40 @@ async def generate_photo(msg: types.Message, state: FSMContext):
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": f"Перегенерируй это фото по инструкции: {prompt}"},
+                    {"type": "text", "text": f"Перегенерируй фото: {prompt}"},
                     {"type": "image_url", "image_url": {"url": image_b64}}
                 ]
             }],
             modalities=["image", "text"]
         )
 
-        if resp.choices[0].message.images:
-            img_url = resp.choices[0].message.images[0].image_url.url
+        # ИСПРАВЛЕНО: Парсим images ИЛИ base64 из content
+        message = resp.choices[0].message
+        img_bytes = None
+
+        # 1. Если есть images поле
+        if hasattr(message, 'images') and message.images:
+            img_url = message.images[0].image_url.url
             b64_img = img_url.split(",")[1]
             img_bytes = base64.b64decode(b64_img)
-            photo_file = BufferedInputFile(img_bytes, "result.png")
 
-            await msg.answer_photo(photo_file, caption=f"✅ Готово! Осталось сегодня: {remaining-1}")
+        # 2. Парсим base64 из текста (data:image/png;base64,...)
+        if not img_bytes:
+            content = message.content or ""
+            img_match = re.search(r'data:image/[a-z]+;base64,([A-Za-z0-9+/=]+)', content)
+            if img_match:
+                b64_img = img_match.group(1)
+                img_bytes = base64.b64decode(b64_img)
+
+        if img_bytes:
+            photo_file = BufferedInputFile(img_bytes, "result.png")
+            await msg.answer_photo(photo_file, caption=f"✅ Готово! Осталось: {remaining-1}")
             use_limit(user_id)
         else:
-            await msg.answer("❌ Не удалось сгенерировать. Попробуй другой промпт.")
+            await msg.answer(f"❌ Изображение не найдено.\nОтвет: {message.content[:200]}")
 
     except Exception as e:
-        await msg.answer(f"🚨 Ошибка API: {str(e)[:200]}")
+        await msg.answer(f"🚨 Ошибка: {str(e)}")
 
     await state.clear()
 
@@ -154,36 +168,46 @@ async def text_generate(msg: types.Message):
     user_id = msg.from_user.id
     remaining, is_prem = get_limit(user_id)
     if remaining <= 0:
-        await msg.answer("❌ Лимит исчерпан!")
+        await msg.answer("❌ Лимит!")
         return
 
-    await msg.answer("🎨 Создаю фото по тексту...")
+    await msg.answer("🎨 Создаю...")
 
     try:
         resp = await client.chat.completions.create(
             model="gemini-2.5-flash-image-preview",
-            messages=[{"role": "user", "content": f"Создай качественное фото: {prompt}"}],
+            messages=[{"role": "user", "content": f"Создай фото: {prompt}"}],
             modalities=["image", "text"]
         )
 
-        if resp.choices[0].message.images:
-            img_url = resp.choices[0].message.images[0].image_url.url
+        message = resp.choices[0].message
+        img_bytes = None
+
+        if hasattr(message, 'images') and message.images:
+            img_url = message.images[0].image_url.url
             b64_img = img_url.split(",")[1]
             img_bytes = base64.b64decode(b64_img)
-            photo_file = BufferedInputFile(img_bytes, "result.png")
 
+        if not img_bytes:
+            content = message.content or ""
+            img_match = re.search(r'data:image/[a-z]+;base64,([A-Za-z0-9+/=]+)', content)
+            if img_match:
+                b64_img = img_match.group(1)
+                img_bytes = base64.b64decode(b64_img)
+
+        if img_bytes:
+            photo_file = BufferedInputFile(img_bytes, "result.png")
             await msg.answer_photo(photo_file, caption=f"✅ Готово! Осталось: {remaining-1}")
             use_limit(user_id)
         else:
-            await msg.answer("❌ Ошибка генерации. Уточни промпт.")
+            await msg.answer(f"❌ Ошибка. Ответ: {message.content[:200]}")
 
     except Exception as e:
-        await msg.answer(f"🚨 Ошибка: {str(e)[:200]}")
+        await msg.answer(f"🚨 {str(e)}")
 
 @dp.message(Command("set_premium"))
 async def admin_cmd(msg: types.Message):
     if msg.from_user.id != ADMIN_ID:
-        await msg.answer("🚫 Только для админа")
         return
     try:
         uid = int(msg.text.split()[1])
@@ -192,14 +216,14 @@ async def admin_cmd(msg: types.Message):
         c.execute("UPDATE users SET is_premium = 1 WHERE user_id = ?", (uid,))
         conn.commit()
         conn.close()
-        await msg.answer(f"✅ Premium выдан пользователю: {uid}")
+        await msg.answer(f"✅ Premium: {uid}")
     except:
-        await msg.answer("❌ Формат: /set_premium 123456789")
+        await msg.answer("❌ /set_premium 123456")
 
 async def main():
     logging.basicConfig(level=logging.INFO)
     init_db()
-    print("🤖 PhotoGen Bot запущен!")
+    print("🤖 Bot started!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
