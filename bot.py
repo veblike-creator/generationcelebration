@@ -12,9 +12,9 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, BufferedInputFile
 from openai import AsyncOpenAI
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8594342469:AAEW_7iGUZrwnLGcocOLduPl14eFExMeo-4")
 API_KEY = os.getenv("API_KEY", "sk-dd7I7EH6Gtg0zBTDManlSPCLoBN8rQPAatfF57GFebec8vgBHVbnx15JTKMa")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))
+ADMIN_ID = int(os.getenv("ADMIN_ID", "6387718314"))
 
 BASE_URL = "https://api.aitunnel.ru/v1/"
 FREE_LIMIT = 3
