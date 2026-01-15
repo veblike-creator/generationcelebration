@@ -13,7 +13,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, BufferedIn
 from openai import AsyncOpenAI
 
 # ===== ТОКЕНЫ В КОДЕ =====
-BOT_TOKEN = "8594342469:AAEW_7iGUZrwnLGcocOLduPl14eFExMeo-4"
+BOT_TOKEN = "8594342469:AAHW4yQ6i0bQn48SL-yg6FTpluWSXlaoknU"
 API_KEY = "sk-aitunnel-iP4KByEtsVaxNJoAP6O1jmPgoqAHGxiD"
 ADMIN_ID = 6387718314
 
